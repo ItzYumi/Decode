@@ -1,3 +1,4 @@
+--test
 -- [[ ANTI-REEXECUTION ]]
 if _G.DecodeAlreadyRunning == true then
     print("ItzYumi: Decode already running po...")
@@ -9712,15 +9713,24 @@ task.spawn(function()
                 currentHighMultiText = #highAlerts > 0 and table.concat(highAlerts, " | ") or ""
             end
         end
+        
         pcall(function()
             Networking.FruitStock.Snapshot.OnClientEvent:Connect(parseIncomingSnapshot)
         end)
-        local ok, initialData = pcall(function()
-            return Networking.FruitStock.Request:Fire()
+        
+        -- Safe fix: Tries both network protocols and validates the data packet to prevent nil crashes
+        task.spawn(function()
+            local ok, immediateResult = pcall(function()
+                if Networking.FruitStock.Request.InvokeServer then
+                    return Networking.FruitStock.Request:InvokeServer()
+                else
+                    return Networking.FruitStock.Request:Fire()
+                end
+            end)
+            if ok and immediateResult and typeof(immediateResult) == "table" then
+                parseIncomingSnapshot(immediateResult)
+            end
         end)
-        if ok and initialData then
-            parseIncomingSnapshot(initialData)
-        end
     end
 end)
 
